@@ -44,34 +44,90 @@ macro_rules! unsupported_type {
     }
 }
 
+macro_rules! get_value {
+    ($this:ident, $v:ident, $fn_call:ident, $ty:ty) => {{
+        $v.$fn_call($this.input.get_opt::<_, $ty>($this.index)
+            .unwrap()
+            .map_err(|_| Error::InvalidType)?)
+    }}
+}
+
 impl<'de, 'a, 'b> de::Deserializer<'de> for &'b mut Deserializer<'a> {
     type Error = Error;
 
     unsupported_type! {
         deserialize_any,
-        deserialize_bool,
-        deserialize_i8,
-        deserialize_i16,
-        deserialize_i32,
-        deserialize_i64,
         deserialize_u8,
         deserialize_u16,
-        deserialize_u32,
         deserialize_u64,
-        deserialize_f32,
-        deserialize_f64,
         deserialize_char,
         deserialize_str,
-        deserialize_string,
         deserialize_bytes,
-        deserialize_byte_buf,
-        deserialize_option,
         deserialize_unit,
-        deserialize_seq,
         deserialize_map,
         deserialize_identifier,
         deserialize_ignored_any,
     }
+
+    fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_bool, bool)
+    }
+
+    fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_i8, i8)
+    }
+
+    fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_i16, i16)
+    }
+
+    fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_i32, i32)
+    }
+
+    fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_i64, i64)
+    }
+
+    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_u32, u32)
+    }
+
+    fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_f32, f32)
+    }
+
+    fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_f64, f64)
+    }
+
+    fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_string, String)
+    }
+
+    fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        get_value!(self, visitor, visit_byte_buf, Vec<u8>)
+    }
+
+    fn deserialize_option<V: Visitor<'de>>(self, visitor: V)
+        -> Result<V::Value>
+    {
+
+        if self.input.get_bytes(self.index).is_some() {
+            visitor.visit_some(self)
+        } else {
+            visitor.visit_none()
+        }
+    }
+
+    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        let raw = self.input.get_opt::<_, Vec<u8>>(self.index)
+            .unwrap()
+            .map_err(|_| Error::InvalidType)?;
+
+        visitor.visit_seq(SeqDeserializer::new(raw.into_iter()))
+    }
+
 
     fn deserialize_enum<V: Visitor<'de>>(self,
                                          _: &str,
@@ -135,163 +191,10 @@ impl<'de, 'a> de::MapAccess<'de> for Deserializer<'a> {
     fn next_value_seed<T: de::DeserializeSeed<'de>>(&mut self, seed: T)
         -> Result<T::Value>
     {
-        let index = self.index;
+        let result = seed.deserialize(&mut *self);
         self.index += 1;
-
-        seed.deserialize(RowDeserializer {
-            row: &self.input,
-            index: index,
-        })
+        result
     }
-}
-
-struct RowDeserializer<'a, 'b: 'a> {
-    row: &'a Row<'b>,
-    index: usize,
-}
-
-macro_rules! get_value {
-    ($this:ident, $v:ident, $fn_call:ident, $ty:ty) => {{
-        $v.$fn_call($this.row.get_opt::<_, $ty>($this.index)
-            .unwrap()
-            .map_err(|_| Error::InvalidType)?)
-    }}
-}
-
-impl<'de, 'a, 'b> de::Deserializer<'de> for RowDeserializer<'a, 'b> {
-    type Error = Error;
-
-    fn deserialize_any<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        unimplemented!("deserialize_any")
-    }
-
-    fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_bool, bool)
-    }
-
-    fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_i8, i8)
-    }
-
-    fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_i16, i16)
-    }
-
-    fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_i32, i32)
-    }
-
-    fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_i64, i64)
-    }
-
-    fn deserialize_u8<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_u16<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_u32, u32)
-    }
-
-    fn deserialize_u64<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_f32, f32)
-    }
-
-    fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_f64, f64)
-    }
-
-    fn deserialize_char<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_str<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_string, String)
-    }
-
-    fn deserialize_bytes<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        println!("deserialize_bytes");
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        get_value!(self, visitor, visit_byte_buf, Vec<u8>)
-    }
-
-    fn deserialize_option<V: Visitor<'de>>(self, visitor: V)
-        -> Result<V::Value>
-    {
-
-        if self.row.get_bytes(self.index).is_some() {
-            visitor.visit_some(self)
-        } else {
-            visitor.visit_none()
-        }
-    }
-
-    fn deserialize_unit<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        println!("deserialize_unit");
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_unit_struct<V: Visitor<'de>>(self, _name: &'static str, _: V) -> Result<V::Value> {
-        println!("deserialize_unit_struct");
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_newtype_struct<V: Visitor<'de>>(self, _name: &'static str, _: V) -> Result<V::Value> {
-        println!("deserialize_newtype_struct");
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        let raw = self.row.get_opt::<_, Vec<u8>>(self.index)
-            .unwrap()
-            .map_err(|_| Error::InvalidType)?;
-
-        visitor.visit_seq(SeqDeserializer::new(raw.into_iter()))
-    }
-
-    fn deserialize_tuple<V: Visitor<'de>>(self, _len: usize, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_tuple_struct<V: Visitor<'de>>(self, _name: &'static str, _len: usize, _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_map<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        unimplemented!("deserialize_map")
-    }
-
-    fn deserialize_struct<V: Visitor<'de>>(self, _name: &'static str, _fields: &'static [&'static str], _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_enum<V: Visitor<'de>>(self, _name: &'static str, _variants: &'static [&'static str], _: V) -> Result<V::Value> {
-        Err(Error::UnsupportedType)
-    }
-
-    fn deserialize_identifier<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        unimplemented!("deserialize_identifier")
-    }
-
-    fn deserialize_ignored_any<V: Visitor<'de>>(self, _: V) -> Result<V::Value> {
-        unimplemented!("deserialize_ignored_any")
-    }
-
 }
 
 #[cfg(test)]
