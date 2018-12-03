@@ -1,15 +1,22 @@
+//! When serializing or deserializing from Postgres rows goes wrong.
 use std::{fmt, error};
 
 use serde::{de, ser};
 
+/// Alias for a `Result` with the error type `serde_postgres::Error`.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
+/// This type represents all possible error that can occur when deserializing
+/// postgres rows.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
+    /// A custom defined error occured. Typically coming from `serde`.
     Message(String),
-    TrailingValues,
+    /// Row contained a field unknown to the data structure.
     UnknownField,
+    /// Row's column type was different from the Rust data structure.
     InvalidType,
+    /// Rust data structure contained a type unsupported by `serde_postgres`.
     UnsupportedType,
 }
 
@@ -35,7 +42,6 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
             Error::Message(ref msg) => msg,
-            Error::TrailingValues => "Unexpected columns",
             Error::UnknownField => "Unknown field",
             Error::InvalidType => "Invalid type",
             Error::UnsupportedType => "Type unsupported",

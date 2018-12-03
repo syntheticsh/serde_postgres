@@ -45,9 +45,11 @@
 //!     Ok(())
 //! }
 //! ```
+#![deny(missing_docs)]
 
 extern crate serde;
 extern crate postgres;
+// extern crate postgres_derive;
 
 #[cfg(test)] extern crate serde_derive;
 

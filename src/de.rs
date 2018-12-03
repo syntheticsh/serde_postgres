@@ -1,3 +1,4 @@
+//! Deserialize postgres rows into a Rust data structure.
 use serde::de::{
     self,
     Deserialize,
@@ -5,16 +6,19 @@ use serde::de::{
     IntoDeserializer,
     value::SeqDeserializer
 };
+
 use postgres::rows::{Row, Rows};
 
 use error::{Error, Result};
 
+/// A structure that deserialize Postgres rows into Rust values.
 pub struct Deserializer<'a> {
     input: Row<'a>,
     index: usize,
 }
 
 impl<'a> Deserializer<'a> {
+    /// Create a `Row` deserializer from a `Row`.
     pub fn from_row(input: Row<'a>) -> Self {
         Self { index: 0, input }
     }
@@ -132,9 +136,10 @@ impl<'de, 'a, 'b> de::Deserializer<'de> for &'b mut Deserializer<'a> {
     fn deserialize_enum<V: Visitor<'de>>(self,
                                          _: &str,
                                          _: &[&str],
-                                         _: V)
+                                         _visitor: V)
         -> Result<V::Value>
     {
+        //visitor.visit_enum(self)
         Err(Error::UnsupportedType)
     }
 
@@ -196,6 +201,47 @@ impl<'de, 'a> de::MapAccess<'de> for Deserializer<'a> {
         result
     }
 }
+
+/*
+impl<'de, 'a, 'b> de::EnumAccess<'de> for &'b mut Deserializer<'a> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V: de::DeserializeSeed<'de>>(self, seed: V)
+        -> Result<(V::Value, Self::Variant)>
+    {
+        let value = seed.deserialize(self);
+    }
+}
+
+impl<'de, 'a, 'b> de::VariantAccess<'de> for &'b mut Deserializer<'a> {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T: de::DeserializeSeed<'de>>(self, seed: T)
+        -> Result<T::Value>
+    {
+        self.input.get_opt::<_, T::Value>(self.index)
+            .unwrap()
+            .map_err(|_| Error::InvalidType)
+    }
+
+    fn tuple_variant<V: Visitor<'de>>(self, _: usize, _: V)
+        -> Result<V::Value>
+    {
+        unimplemented!("tuple_variant")
+    }
+
+    fn struct_variant<V: Visitor<'de>>(self, _: &[&str], _: V)
+        -> Result<V::Value>
+    {
+        unimplemented!("struct_variant")
+    }
+}
+*/
 
 #[cfg(test)]
 mod tests {
@@ -275,6 +321,8 @@ mod tests {
         assert_eq!(9999.9999, buu.weight);
         assert_eq!("Woo Woo", buu.catchphrase);
         assert_eq!(vec![1,2,3,4,5,6], buu.stomach_contents);
+
+        connection.execute("DROP TABLE Buu", &[]).unwrap();
     }
 
     #[test]
@@ -346,5 +394,55 @@ mod tests {
         assert_eq!(None, buu.weight);
         assert_eq!(None, buu.catchphrase);
         assert_eq!(None, buu.stomach_contents);
+
+        connection.execute("DROP TABLE NullBuu", &[]).unwrap();
     }
+
+    /*
+    use postgres_derive::FromSql;
+    #[test]
+    fn enums() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Goku {
+            hair: HairColour,
+        }
+
+        #[derive(Debug, Deserialize, FromSql, PartialEq)]
+        #[postgres(name = "hair_colour")]
+        enum HairColour {
+            #[postgres(name = "black")]
+            Black,
+            #[postgres(name = "yellow")]
+            Yellow,
+            #[postgres(name = "blue")]
+            Blue,
+        }
+
+        let connection = setup_and_connect_to_db();
+
+        connection.execute("CREATE TYPE hair_colour as ENUM (
+            'black',
+            'yellow',
+            'blue'
+        )", &[]).unwrap();
+
+        connection.execute("CREATE TABLE Gokus (hair hair_colour)",
+        &[]).unwrap();
+
+        connection.execute("INSERT INTO Gokus VALUES ('black')", &[])
+            .unwrap();
+
+        let results = connection.query("SELECT * FROM Gokus", &[])
+            .unwrap();
+
+        let row = results.get(0);
+
+        let goku: Goku = super::from_row(row).unwrap();
+
+        assert_eq!(HairColour::Black, goku.hair);
+
+        connection.execute("DROP TABLE Gokus", &[]).unwrap();
+        connection.execute("DROP TYPE hair_colour", &[]).unwrap();
+    }
+    */
 }
