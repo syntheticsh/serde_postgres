@@ -5,7 +5,7 @@ license = "MIT/Apache-2.0"
 name = "serde_postgres"
 homepage = "https://github.com/1aim/serde_postgres"
 repository = "https://github.com/1aim/serde_postgres.git"
-version = "0.1.0"
+version = "0.1.1"
 
 [badges]
 [badges.travis-ci]
