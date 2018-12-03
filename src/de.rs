@@ -68,7 +68,6 @@ impl<'de, 'a, 'b> de::Deserializer<'de> for &'b mut Deserializer<'a> {
         deserialize_str,
         deserialize_bytes,
         deserialize_unit,
-        deserialize_map,
         deserialize_identifier,
         deserialize_ignored_any,
     }
@@ -170,8 +169,12 @@ impl<'de, 'a, 'b> de::Deserializer<'de> for &'b mut Deserializer<'a> {
         Err(Error::UnsupportedType)
     }
 
-    fn deserialize_struct<V: Visitor<'de>>(self, _name: &'static str, _fields: &'static [&'static str], visitor: V) -> Result<V::Value> {
+    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
         visitor.visit_map(self)
+    }
+
+    fn deserialize_struct<V: Visitor<'de>>(self, _: &'static str, _: &'static [&'static str], v: V) -> Result<V::Value> {
+        self.deserialize_map(v)
     }
 }
 
