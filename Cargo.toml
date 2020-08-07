@@ -20,3 +20,4 @@ tokio-postgres = { version = "0.5.2", default_features = false }
 serde = { version = "1.0.104", features = [ "derive" ] }
 tokio = { version = "0.2.11", features = [ "macros" ] }
 tokio-postgres = "0.5.2"
+postgres = "0.17.4"
