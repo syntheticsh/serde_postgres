@@ -1,7 +1,12 @@
 //! # Serde Postgres
 //!
-//! Easily deserialize rows from [`postgres`](//docs.rs/postgres) into
+//! Easily deserialize rows from postgres into
 //! arbitrary structs. (Only deserialization is supported).
+//!
+//! This works with following postgres client libraries:
+//!
+//! - [`postgres`](//docs.rs/postgres)
+//! - [`tokio_postgres`](//docs.rs/postgres/tokio_postgres)
 //!
 //! ```rust,no_run
 //! use std::error::Error;
