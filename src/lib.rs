@@ -4,37 +4,33 @@
 //! arbitrary structs. (Only deserialization is supported).
 //!
 //! ```rust,no_run
-//! extern crate serde;
-//! extern crate serde_derive;
-//! extern crate serde_postgres;
-//! extern crate postgres;
-//!
 //! use std::error::Error;
-//!
-//! use serde_derive::Deserialize;
-//! use postgres::{Connection, TlsMode};
+//! use serde::Deserialize;
+//! use tokio_postgres::{connect, NoTls};
 //!
 //! #[derive(Clone, Debug, Deserialize)]
 //! struct Person {
 //!     name: String,
 //!     age: i32,
 //! }
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn Error>> {
+//!     let (client, conn) = connect("postgres://postgres@localhost:5432", NoTls).await?;
+//!     tokio::spawn(async move { conn.await.unwrap() });
 //!
-//! fn main() -> Result<(), Box<Error>> {
-//!     let connection = Connection::connect("postgres://postgres@localhost:5432", TlsMode::None)?;
+//!     client.execute(
+//!         "CREATE TABLE IF NOT EXISTS Person (
+//!             name VARCHAR NOT NULL,
+//!             age INT NOT NULL
+//!         )",
+//!         &[]
+//!     ).await?;
 //!
-//!     connection.execute("CREATE TABLE IF NOT EXISTS Person (
-//!     name VARCHAR NOT NULL,
-//!     age INT NOT NULL
-//!     )", &[])?;
+//!     client.execute("INSERT INTO Person (name, age) VALUES ($1, $2)", &[&"Jane", &23]).await?;
 //!
-//!     connection.execute("INSERT INTO Person (name, age) VALUES ($1, $2)",
-//!     &[&"Jane", &23])?;
+//!     client.execute("INSERT INTO Person (name, age) VALUES ($1, $2)", &[&"Alice", &32]).await?;
 //!
-//!     connection.execute("INSERT INTO Person (name, age) VALUES ($1, $2)",
-//!     &[&"Alice", &32])?;
-//!
-//!     let rows = connection.query("SELECT name, age FROM Person", &[])?;
+//!     let rows = client.query("SELECT name, age FROM Person", &[]).await?;
 //!
 //!     let people: Vec<Person> = serde_postgres::from_rows(&rows)?;
 //!
@@ -47,14 +43,9 @@
 //! ```
 #![deny(missing_docs)]
 
-extern crate serde;
-extern crate postgres;
-// extern crate postgres_derive;
-
-#[cfg(test)] extern crate serde_derive;
-
 pub mod de;
 pub mod error;
+mod raw;
 
 pub use de::{from_row, from_rows, Deserializer};
 pub use error::{Error, Result};
