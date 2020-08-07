@@ -224,20 +224,25 @@ impl<'de, 'a> de::MapAccess<'de> for Deserializer<'a> {
 mod tests {
     use serde::Deserialize;
     use std::env;
-    use tokio_postgres::{connect, Client, NoTls};
+    use tokio_postgres::{connect, Client,  NoTls};
 
-    async fn setup_and_connect_to_db() -> Client {
+
+    fn get_postgres_url_from_env() -> String {
         let user = env::var("PGUSER").unwrap_or_else(|_| "postgres".into());
         let pass = env::var("PGPASSWORD").unwrap_or_else(|_| "postgres".into());
         let addr = env::var("PGADDR").unwrap_or_else(|_| "localhost".into());
         let port = env::var("PGPORT").unwrap_or_else(|_| "5432".into());
-        let url = format!(
+        format!(
             "postgres://{user}:{pass}@{addr}:{port}",
             user = user,
             pass = pass,
             addr = addr,
             port = port
-        );
+        )
+    }
+
+    async fn setup_and_connect_to_db() -> Client {
+        let url  = get_postgres_url_from_env();
         let (client, conn) = connect(&url, NoTls).await.unwrap();
         tokio::spawn(async move {
             conn.await.unwrap();
@@ -490,4 +495,40 @@ mod tests {
 
         connection.execute("DROP TABLE MiBuu", &[]).await.unwrap();
     }
+
+    #[test]
+    fn sync_postgres_still_works() -> Result<(), postgres::Error>{
+        use postgres::{Client, NoTls};
+        #[derive(Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+        struct Person { name: String, age: i32 };
+
+        let url = get_postgres_url_from_env();
+        let mut client = Client::connect(&url, NoTls).unwrap();
+
+        client.execute("CREATE TABLE TestPerson (
+            name VARCHAR NOT NULL,
+            age INT NOT NULL
+        )", &[])?;
+
+        client.execute("INSERT INTO TestPerson (name, age) VALUES ($1, $2)",
+                       &[&"Jane", &23i32])?;
+
+        client.execute("INSERT INTO TestPerson (name, age) VALUES ($1, $2)",
+                       &[&"Alice", &32i32])?;
+
+        let rows = client.query("SELECT name, age FROM Person", &[])?;
+
+        let mut people: Vec<Person> = crate::from_rows(&rows).unwrap();
+        people.sort();
+
+        let expected = vec![
+            Person { name: "Alice".into(), age:  32 },
+            Person { name: "Jane".into(),  age: 23 },
+        ];
+
+        assert_eq!(people, expected);
+
+        Ok(())
+    }
+
 }
