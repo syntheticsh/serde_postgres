@@ -44,8 +44,6 @@
 #![deny(missing_docs)]
 
 pub mod de;
-pub mod error;
 mod raw;
 
-pub use de::{from_row, from_rows, Deserializer};
-pub use error::{Error, Result};
+pub use de::{from_row, from_rows, Deserializer, DeError, DeResult};
