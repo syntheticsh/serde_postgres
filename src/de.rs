@@ -219,47 +219,6 @@ impl<'de, 'a> de::MapAccess<'de> for Deserializer<'a> {
     }
 }
 
-/*
-impl<'de, 'a, 'b> de::EnumAccess<'de> for &'b mut Deserializer<'a> {
-    type Error = Error;
-    type Variant = Self;
-
-    fn variant_seed<V: de::DeserializeSeed<'de>>(self, seed: V)
-        -> Result<(V::Value, Self::Variant)>
-    {
-        let value = seed.deserialize(self);
-    }
-}
-
-impl<'de, 'a, 'b> de::VariantAccess<'de> for &'b mut Deserializer<'a> {
-    type Error = Error;
-
-    fn unit_variant(self) -> Result<()> {
-        Ok(())
-    }
-
-    fn newtype_variant_seed<T: de::DeserializeSeed<'de>>(self, seed: T)
-        -> Result<T::Value>
-    {
-        self.input.get_opt::<_, T::Value>(self.index)
-            .unwrap()
-            .map_err(|_| Error::InvalidType)
-    }
-
-    fn tuple_variant<V: Visitor<'de>>(self, _: usize, _: V)
-        -> Result<V::Value>
-    {
-        unimplemented!("tuple_variant")
-    }
-
-    fn struct_variant<V: Visitor<'de>>(self, _: &[&str], _: V)
-        -> Result<V::Value>
-    {
-        unimplemented!("struct_variant")
-    }
-}
-*/
-
 #[cfg(test)]
 #[allow(clippy::float_cmp)]
 mod tests {
