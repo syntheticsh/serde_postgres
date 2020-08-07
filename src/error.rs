@@ -33,17 +33,14 @@ impl ser::Error for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(error::Error::description(self))
-    }
-}
-
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match self {
+        let msg = match self {
             Error::Message(ref msg) => msg,
             Error::UnknownField => "Unknown field",
             Error::InvalidType(_) => "Invalid type",
             Error::UnsupportedType => "Type unsupported",
-        }
+        };
+        f.write_str(msg)
     }
 }
+
+impl error::Error for Error {}
