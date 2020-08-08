@@ -224,8 +224,7 @@ impl<'de, 'a> de::MapAccess<'de> for Deserializer<'a> {
 mod tests {
     use serde::Deserialize;
     use std::env;
-    use tokio_postgres::{connect, Client,  NoTls};
-
+    use tokio_postgres::{connect, Client, NoTls};
 
     fn get_postgres_url_from_env() -> String {
         let user = env::var("PGUSER").unwrap_or_else(|_| "postgres".into());
@@ -264,7 +263,9 @@ mod tests {
             stomach_contents: Vec<u8>,
         }
 
-        let connection = setup_and_connect_to_db().await;
+        let mut connection = setup_and_connect_to_db().await;
+        //Don't ever commit data.
+        let connection = connection.transaction().await.unwrap();
 
         connection
             .execute(
@@ -312,14 +313,14 @@ mod tests {
         let row = connection
             .query_one(
                 "SELECT wants_candy,
-            width,
-            amount_eaten,
-            amount_want_to_eat,
-            speed,
-            weight,
-            catchphrase,
-            stomach_contents
- FROM Buu",
+                    width,
+                    amount_eaten,
+                    amount_want_to_eat,
+                    speed,
+                    weight,
+                    catchphrase,
+                    stomach_contents
+                FROM Buu",
                 &[],
             )
             .await
@@ -353,7 +354,9 @@ mod tests {
             stomach_contents: Option<Vec<u8>>,
         }
 
-        let connection = setup_and_connect_to_db().await;
+        let mut connection = setup_and_connect_to_db().await;
+        //Don't ever commit data.
+        let connection = connection.transaction().await.unwrap();
 
         connection
             .batch_execute(
@@ -426,7 +429,9 @@ mod tests {
             wants_candie: bool,
         }
 
-        let connection = setup_and_connect_to_db().await;
+        let mut connection = setup_and_connect_to_db().await;
+        //Don't ever commit data.
+        let connection = connection.transaction().await.unwrap();
 
         connection
             .batch_execute(
@@ -465,7 +470,9 @@ mod tests {
             wants_candy: bool,
         }
 
-        let connection = setup_and_connect_to_db().await;
+        let mut connection = setup_and_connect_to_db().await;
+        //Don't ever commit data.
+        let connection = connection.transaction().await.unwrap();
 
         connection
             .batch_execute(
@@ -504,8 +511,9 @@ mod tests {
 
         let url = get_postgres_url_from_env();
         let mut client = Client::connect(&url, NoTls).unwrap();
+        let mut client = client.transaction().unwrap();
 
-        client.execute("CREATE TABLE TestPerson (
+        client.execute("CREATE TABLE IF NOT EXISTS TestPerson (
             name VARCHAR NOT NULL,
             age INT NOT NULL
         )", &[])?;
